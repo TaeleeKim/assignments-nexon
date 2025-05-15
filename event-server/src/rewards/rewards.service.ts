@@ -1,0 +1,129 @@
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { Reward } from './schemas/reward.schema';
+import { RewardRequest, RewardRequestDocument } from './schemas/reward-request.schema';
+import { CreateRewardDto } from './dto/create-reward.dto';
+import { CreateRewardRequestDto } from './dto/create-reward-request.dto';
+import { EventsService } from '../events/events.service';
+import { Event } from '../events/schemas/event.schema';
+
+@Injectable()
+export class RewardsService {
+  constructor(
+    @InjectModel(Reward.name) private readonly rewardModel: Model<Reward>,
+    @InjectModel(RewardRequest.name) private readonly rewardRequestModel: Model<RewardRequest>,
+    private readonly eventsService: EventsService,
+  ) {}
+
+  async create(createRewardDto: CreateRewardDto): Promise<Reward> {
+    const event: Event = await this.eventsService.findOne(createRewardDto.eventId) as Event;
+    const reward = new this.rewardModel(createRewardDto);
+    const savedReward = await reward.save();
+
+    // Update event with new reward
+    await this.eventsService.update(createRewardDto.eventId, {
+      rewards: [...((event.rewards || []) as Types.ObjectId[]), savedReward._id as Types.ObjectId],
+    });
+
+    return savedReward;
+  }
+
+  async findAll(): Promise<Reward[]> {
+    return this.rewardModel.find().populate('eventId').exec();
+  }
+
+  async findOne(id: string): Promise<Reward> {
+    const reward = await this.rewardModel.findById(id).populate('eventId').exec();
+    if (!reward) {
+      throw new NotFoundException('Reward not found');
+    }
+    return reward;
+  }
+
+  async findByEvent(eventId: string): Promise<Reward[]> {
+    return this.rewardModel.find({ eventId }).populate('eventId').exec();
+  }
+
+  async createRequest(userId: string, createRewardRequestDto: CreateRewardRequestDto): Promise<RewardRequestDocument> {
+    const { eventId, rewardId } = createRewardRequestDto;
+
+    // Check if event exists and is active
+    const event = await this.eventsService.findOne(eventId);
+    if (event.status !== 'ACTIVE') {
+      throw new BadRequestException('Event is not active');
+    }
+
+    // Check if reward exists and belongs to the event
+    const reward = await this.findOne(rewardId);
+    if (reward.eventId.toString() !== eventId) {
+      throw new BadRequestException('Reward does not belong to the specified event');
+    }
+
+    // Check if user already has a pending request for this event
+    const existingRequest = await this.rewardRequestModel.findOne({
+      userId,
+      eventId,
+      status: 'PENDING',
+    });
+
+    if (existingRequest) {
+      throw new BadRequestException('User already has a pending request for this event');
+    }
+
+    const request = new this.rewardRequestModel({
+      userId,
+      ...createRewardRequestDto,
+    });
+
+    return request.save();
+  }
+
+  async findAllRequests(userId?: string): Promise<RewardRequest[]> {
+    const query = userId ? { userId } : {};
+    return this.rewardRequestModel
+      .find(query)
+      .populate('eventId')
+      .populate('rewardId')
+      .exec();
+  }
+
+  async findOneRequest(id: string): Promise<RewardRequestDocument> {
+    const request = await this.rewardRequestModel
+      .findById(id)
+      .populate('eventId')
+      .populate('rewardId')
+      .exec();
+    if (!request) {
+      throw new NotFoundException('Reward request not found');
+    }
+    return request;
+  }
+
+  async approveRequest(id: string, approverId: string): Promise<RewardRequestDocument> {
+    const request = await this.findOneRequest(id);
+    if (request.status !== 'PENDING') {
+      throw new BadRequestException('Request is not pending');
+    }
+
+    request.status = 'APPROVED';
+    request.approvedBy = approverId;
+    request.responseData = { approvedAt: new Date() };
+
+    return request.save();
+  }
+
+  async rejectRequest(id: string, rejectorId: string, reason: string): Promise<RewardRequestDocument> {
+    const request = await this.findOneRequest(id);
+    if (request.status !== 'PENDING') {
+      throw new BadRequestException('Request is not pending');
+    }
+
+    request.status = 'REJECTED';
+    request.rejectedBy = rejectorId;
+    request.rejectionReason = reason;
+    request.responseData = { rejectedAt: new Date() };
+
+    return request.save();
+  }
+} 
