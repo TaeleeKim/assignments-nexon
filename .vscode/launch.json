@@ -1,0 +1,77 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Auth Server",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/auth-server/src/main.ts",
+      "preLaunchTask": "tsc: build - auth-server/tsconfig.json",
+      "outFiles": ["${workspaceFolder}/auth-server/dist/**/*.js"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ],
+      "restart": true,
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:dev"],
+      "cwd": "${workspaceFolder}/auth-server",
+      "env": {
+        "NODE_ENV": "development",
+        "MONGODB_URI": "mongodb://admin:password@localhost:27017/auth?authSource=admin",
+        "JWT_SECRET": "your-secret-key",
+        "PORT": "3001"
+      }
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Event Server",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/event-server/src/main.ts",
+      "preLaunchTask": "tsc: build - event-server/tsconfig.json",
+      "outFiles": ["${workspaceFolder}/event-server/dist/**/*.js"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ],
+      "restart": true,
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:dev"],
+      "cwd": "${workspaceFolder}/event-server",
+      "env": {
+        "NODE_ENV": "development",
+        "MONGODB_URI": "mongodb://admin:password@localhost:27017/events?authSource=admin",
+        "JWT_SECRET": "your-secret-key",
+        "PORT": "3002"
+      }
+    },
+    {
+      "type": "node",
+      "request": "launch",
+      "name": "Debug Gateway Server",
+      "skipFiles": ["<node_internals>/**"],
+      "program": "${workspaceFolder}/gateway-server/src/main.ts",
+      "preLaunchTask": "tsc: build - gateway-server/tsconfig.json",
+      "outFiles": ["${workspaceFolder}/gateway-server/dist/**/*.js"],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ],
+      "restart": true,
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "start:dev"],
+      "cwd": "${workspaceFolder}/gateway-server",
+      "env": {
+        "NODE_ENV": "development",
+        "AUTH_SERVICE_URL": "http://localhost:3001",
+        "EVENT_SERVICE_URL": "http://localhost:3002",
+        "PORT": "3000"
+      }
+    }
+  ]
+} 
