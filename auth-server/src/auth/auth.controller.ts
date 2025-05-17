@@ -11,6 +11,14 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagg
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('register')
+  @ApiOperation({ summary: '사용자 회원가입, create USER' })
+  @ApiResponse({ status: 201, description: '회원가입 성공' })
+  @ApiResponse({ status: 400, description: '잘못된 요청' })
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+
   @UseGuards(LocalAuthGuard)
   @Post('login')
   @ApiOperation({ summary: '사용자 로그인' })

@@ -13,5 +13,5 @@ export class RegisterDto {
 
   @ApiProperty({ example: 'John Doe', description: '사용자 이름' })
   @IsString()
-  name: string;
+  username: string;
 } 

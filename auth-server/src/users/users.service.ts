@@ -12,16 +12,22 @@ export class UsersService {
     @InjectModel(User.name) private readonly userModel: Model<User>,
   ) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const { username, password, role } = createUserDto;
+  async existsByEmail(email: string): Promise<boolean> {
+    const user = await this.userModel.findOne({ email }).exec();
+    return !!user;
+  }
 
-    const existingUser = await this.userModel.findOne({ username });
-    if (existingUser) {
-      throw new ConflictException('Username already exists');
+  async create(createUserDto: CreateUserDto): Promise<User> {
+    const { username, email, password, role } = createUserDto;
+    
+    const exists = await this.existsByEmail(email);
+    if (exists) {
+      throw new ConflictException('Email already exists');
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new this.userModel({
+      email,
       username,
       password: hashedPassword,
       role: role || UserRole.USER,
@@ -34,6 +40,38 @@ export class UsersService {
     return this.userModel.find().select('-password').exec();
   }
 
+  async findByRole(role: UserRole): Promise<User[]> {
+    const users = await this.userModel.find({ role }).select('-password').exec();
+    if (!users.length) {
+      throw new NotFoundException(`No users found with role: ${role}`);
+    }
+    return users;
+  }
+
+  async findWithFilters(filters: {
+    role?: UserRole;
+    username?: string;
+    email?: string;
+  }): Promise<User[]> {
+    const query: any = {};
+
+    if (filters.role) {
+      query.role = filters.role;
+    }
+    if (filters.username) {
+      query.username = filters.username;
+    }
+    if (filters.email) {
+      query.email = filters.email;
+    }
+
+    const users = await this.userModel.find(query).select('-password').exec();
+    if (!users.length) {
+      throw new NotFoundException('No users found matching the criteria');
+    }
+    return users;
+  }
+
   async findOne(id: string): Promise<User> {
     const user = await this.userModel.findById(id).select('-password').exec();
     if (!user) {
@@ -43,9 +81,25 @@ export class UsersService {
   }
 
   async findByUsername(username: string): Promise<User> {
-    const user = await this.userModel.findOne({ username }).exec();
+    const user = await this.userModel.findOne({ username }).select('-password').exec();
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(`User with username ${username} not found`);
+    }
+    return user;
+  }
+
+  async findByEmailWithPassword(email: string): Promise<User> {
+    const user = await this.userModel.findOne({ email }).exec();
+    if (!user) {
+      throw new NotFoundException(`User with email ${email} not found`);
+    }
+    return user;
+  }
+
+  async findByEmail(email: string): Promise<User> {
+    const user = await this.userModel.findOne({ email }).select('-password').exec();
+    if (!user) {
+      throw new NotFoundException(`User with email ${email} not found`);
     }
     return user;
   }
@@ -64,5 +118,9 @@ export class UsersService {
     if (result.deletedCount === 0) {
       throw new NotFoundException('User not found');
     }
+  }
+
+  async compare(first: User, second: User) {
+    return first._id === second._id;
   }
 } 
