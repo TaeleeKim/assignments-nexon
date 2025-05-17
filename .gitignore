@@ -9,3 +9,4 @@ gateway-server/dist
 auth-server/.env
 event-server/.env
 gateway-server/.env
+node_modules

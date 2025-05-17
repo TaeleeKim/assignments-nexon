@@ -8,8 +8,10 @@ RUN npm install
 
 COPY . .
 
-RUN npm run build
+# Make the startup script executable
+RUN chmod +x start.sh
 
 EXPOSE 3001
 
-CMD ["npm", "run", "start:prod"] 
+# Use the startup script as the entrypoint
+CMD ["./start.sh"] 
