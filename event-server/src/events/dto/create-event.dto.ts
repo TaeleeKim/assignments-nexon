@@ -1,43 +1,48 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsEnum, IsDate, IsObject, IsOptional, IsArray } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsEnum, IsDate, IsObject, IsOptional, IsArray, IsNotEmpty } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EventType, EventStatus } from '../schemas/event.schema';
 import { Types } from 'mongoose';
 
 export class CreateEventDto {
-  @ApiProperty({ example: 'Summer Event 2024', description: '이벤트 이름' })
+  @ApiProperty({ example: 'Summer Event 2025', description: '이벤트 이름' })
   @IsString()
+  @IsNotEmpty()
   name: string;
 
-  @ApiProperty({ example: '2024-06-01T00:00:00Z', description: '이벤트 시작일' })
+  @ApiProperty({ example: '2025-05-18T00:00:00Z', description: '이벤트 시작일' })
   @Type(() => Date)
   @IsDate()
+  @IsNotEmpty()
   startDate: Date;
 
-  @ApiProperty({ example: '2024-08-31T23:59:59Z', description: '이벤트 종료일' })
+  @ApiProperty({ example: '2025-05-18T23:59:59Z', description: '이벤트 종료일' })
   @Type(() => Date)
   @IsDate()
+  @IsNotEmpty()
   endDate: Date;
 
-  @ApiProperty({ example: 'This is a description of the event', description: '이벤트 설명' })
+  @ApiProperty({ example: '오늘 오전 10시에 이벤트가 시작됩니다. 조건을 만족해주세요.', description: '이벤트 설명' })
   @IsString()
+  @IsNotEmpty()
   description: string;
 
-  @ApiProperty({ example: 'SUMMER', description: '이벤트 타입' })
+  @ApiProperty({ example: 'LOGIN', description: '이벤트 타입' })
   @IsEnum(EventType)
+  @IsNotEmpty()
   type: EventType;
 
-  @ApiProperty({ example: 'COMPLETED', description: '이벤트 상태' })
+  @ApiProperty({ example: 'ACTIVE', description: '이벤트 상태' })
   @IsEnum(EventStatus)
-  @IsOptional()
-  status?: EventStatus;
+  @IsNotEmpty()
+  status: EventStatus;
 
-  @ApiProperty({ example: '{ "condition": "true" }', description: '이벤트 조건' })
+  @ApiProperty({ example: '{ "login": "true" }', description: '이벤트 조건' })
   @IsObject()
-  @IsOptional()
-  conditions?: Record<string, any>;
+  @IsNotEmpty()
+  conditions: Record<string, any>;
 
-  @ApiProperty({ example: ['64f1a2b3c4d5e6f7g8h9i0j1'], description: '이벤트에 포함된 보상 ID 목록' })
+  @ApiPropertyOptional({ example: '[]', description: '이벤트에 포함된 보상 ID 목록' })
   @IsArray()
   @IsOptional()
   rewards?: Types.ObjectId[];

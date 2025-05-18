@@ -17,7 +17,8 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { User, UserRole } from './schemas/user.schema';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam } from '@nestjs/swagger';
+import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
 
 @ApiTags('users')
 @Controller('users')
@@ -27,8 +28,7 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: '새로운 사용자 생성' })
+  @ApiOperation({ summary: '[only ADMIN] 새로운 사용자 생성' })
   @ApiResponse({ status: 201, description: '사용자 생성 성공' })
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
@@ -36,7 +36,7 @@ export class UsersController {
 
   @Get()
   @Roles(UserRole.ADMIN, UserRole.AUDITOR)
-  @ApiOperation({ summary: '사용자 목록 조회' })
+  @ApiOperation({ summary: '[only ADMIN, AUDITOR] 사용자 목록 조회' })
   @ApiResponse({ status: 200, description: '사용자 목록 조회 성공' })
   @ApiQuery({ 
     name: 'role', 
@@ -73,25 +73,28 @@ export class UsersController {
 
   @Get(':id')
   @Roles(UserRole.ADMIN, UserRole.AUDITOR)
-  @ApiOperation({ summary: 'ID로 사용자 조회' })
+  @ApiOperation({ summary: '[only ADMIN, AUDITOR] ID로 사용자 조회' })
   @ApiResponse({ status: 200, description: '사용자 조회 성공' })
-  findOne(@Param('id') id: string) {
+  @ApiParam({ name: 'id', description: '사용자 ID' })
+  findOne(@Param('id', MongoIdPipe) id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: '사용자 정보 수정' })
+  @ApiOperation({ summary: '[only ADMIN] 사용자 정보 수정' })
   @ApiResponse({ status: 200, description: '사용자 정보 수정 성공' })
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  @ApiParam({ name: 'id', description: '사용자 ID' })
+  update(@Param('id', MongoIdPipe) id: string, @Body() updateUserDto: UpdateUserDto) {
     return this.usersService.update(id, updateUserDto);
   }
 
   @Delete(':id')
   @Roles(UserRole.ADMIN)
-  @ApiOperation({ summary: '사용자 삭제' })
+  @ApiOperation({ summary: '[only ADMIN] 사용자 삭제' })
   @ApiResponse({ status: 200, description: '사용자 삭제 성공' })
-  remove(@Param('id') id: string) {
+  @ApiParam({ name: 'id', description: '사용자 ID' })
+  remove(@Param('id', MongoIdPipe) id: string) {
     return this.usersService.remove(id);
   }
 } 

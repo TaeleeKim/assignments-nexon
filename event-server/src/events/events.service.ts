@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Event } from './schemas/event.schema';
+import { Event, EventStatus, EventType } from './schemas/event.schema';
 import { CreateEventDto } from './dto/create-event.dto';
 
 @Injectable()
@@ -11,12 +11,45 @@ export class EventsService {
   ) {}
 
   async create(createEventDto: CreateEventDto): Promise<Event> {
-    const event = new this.eventModel(createEventDto);
-    return event.save();
+    try {
+      const event = new this.eventModel(createEventDto);
+      return event.save();
+    } catch (error) {
+      console.log(error);
+      throw new BadRequestException('Event creation failed');
+    } 
   }
 
-  async findAll(): Promise<Event[]> {
-    return this.eventModel.find().populate('rewards').exec();
+  async findAllSimple(status?: string, type?: string): Promise<Partial<Event>[]> {
+    const query: any = {};
+    
+    if (status) {
+      query.status = status as EventStatus;
+    } 
+    if (type) {
+      query.type = type as EventType;
+    }
+    
+    return this.eventModel
+      .find(query)
+      .select('name type conditions')
+      .exec();
+  }
+
+  async findAllDetailed(status?: string, type?: string): Promise<Event[]> {
+    const query: any = {};
+    
+    if (status) {
+      query.status = status as EventStatus;
+    }
+    if (type) {
+      query.type = type as EventType;
+    }
+
+    return this.eventModel
+      .find(query)
+      .populate('rewards')
+      .exec();
   }
 
   async findOne(id: string): Promise<Event> {

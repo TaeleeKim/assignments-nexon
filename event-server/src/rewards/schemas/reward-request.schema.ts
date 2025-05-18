@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { RewardCategory } from './reward.schema';
 
 export type RewardRequestDocument = RewardRequest & Document;
 
@@ -17,8 +18,17 @@ export class RewardRequest {
   @Prop({ required: true, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' })
   status: string;
 
-  @Prop()
-  points: number;
+  @Prop({ required: true })
+  quantity: number;
+
+  @Prop({ type: Object })
+  rewardData?: {
+    category: RewardCategory;
+    subType: string;
+    name: string;
+    description: string;
+    metadata?: Record<string, any>;
+  };
 
   @Prop()
   approvedAt?: Date;
@@ -29,11 +39,11 @@ export class RewardRequest {
   @Prop()
   rejectionReason?: string;
 
-  @Prop()
-  approvedBy?: string;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  approvedBy?: Types.ObjectId;
 
-  @Prop()
-  rejectedBy?: string;
+  @Prop({ type: Types.ObjectId, ref: 'User' })
+  rejectedBy?: Types.ObjectId;
 
   @Prop({ type: Object })
   responseData?: any;

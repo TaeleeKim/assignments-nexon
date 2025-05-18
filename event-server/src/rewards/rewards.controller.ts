@@ -4,41 +4,72 @@ import {
   Post,
   Body,
   Param,
-  UseGuards,
   Request,
   Patch,
+  Query,
 } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
-import { CreateRewardDto } from './dto/create-reward.dto';
-import { CreateRewardRequestDto } from './dto/create-reward-request.dto';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+import { CreateRewardDto } from './dto/reward/create-reward.dto';
+import { CreateRewardRequestDto } from './dto/reward-request/create-reward-request.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
+import { ApiBody, ApiExtraModels, ApiOperation, ApiQuery, getSchemaPath, OmitType } from '@nestjs/swagger';
+import { RewardCategory, SUBTYPE_ENUMS, RewardSubType } from './schemas/reward.schema';
+import { BaseRewardDto } from './dto/reward/base-reward.dto';
+import { REWARD_DTOS } from './dto/reward/create-reward.dto';
+import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
 
 @Controller('rewards')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiExtraModels(...Object.values(REWARD_DTOS))
 export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) {}
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  create(@Body() createRewardDto: CreateRewardDto) {
-    return this.rewardsService.create(createRewardDto);
+  @ApiOperation({ summary: '[only ADMIN, OPERATOR] 보상 생성' })
+  @ApiQuery({ 
+    name: 'category', 
+    enum: RewardCategory,
+    description: '보상 카테고리',
+    required: true 
+  })
+  @ApiQuery({ 
+    name: 'subType', 
+    description: '보상 세부 유형',
+    required: true,
+    enum: Object.values(SUBTYPE_ENUMS).flatMap(enumObj => Object.values(enumObj))
+  })
+  @ApiBody({
+    type: BaseRewardDto
+  })
+  create(
+    @Query('category') category: RewardCategory,
+    @Query('subType') subType: RewardSubType,
+    @Body() createRewardDto: Omit<CreateRewardDto, 'category' | 'subType'>
+  ) {
+    const rewardDto = {
+      ...createRewardDto,
+      category,
+      subType
+    } as CreateRewardDto;
+    return this.rewardsService.create(rewardDto);
   }
 
   @Get()
+  @ApiOperation({ summary: '[except AUDITOR] 보상 목록 조회' })
   findAll() {
     return this.rewardsService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
+  @ApiOperation({ summary: '[except AUDITOR] 보상 상세 조회' })
+  findOne(@Param('id', MongoIdPipe) id: string) {
     return this.rewardsService.findOne(id);
   }
 
   @Get('event/:eventId')
-  findByEvent(@Param('eventId') eventId: string) {
+  @ApiOperation({ summary: '[except AUDITOR] 이벤트별 보상 조회' })
+  findByEvent(@Param('eventId', MongoIdPipe) eventId: string) {
     return this.rewardsService.findByEvent(eventId);
   }
 
@@ -64,20 +95,20 @@ export class RewardsController {
   }
 
   @Get('request/:id')
-  findOneRequest(@Param('id') id: string) {
+  findOneRequest(@Param('id', MongoIdPipe) id: string) {
     return this.rewardsService.findOneRequest(id);
   }
 
   @Patch('request/:id/approve')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  approveRequest(@Param('id') id: string, @Request() req) {
+  approveRequest(@Param('id', MongoIdPipe) id: string, @Request() req) {
     return this.rewardsService.approveRequest(id, req.user.userId);
   }
 
   @Patch('request/:id/reject')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   rejectRequest(
-    @Param('id') id: string,
+    @Param('id', MongoIdPipe) id: string,
     @Request() req,
     @Body('reason') reason: string,
   ) {

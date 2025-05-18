@@ -3,10 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { Reward } from './schemas/reward.schema';
 import { RewardRequest, RewardRequestDocument } from './schemas/reward-request.schema';
-import { CreateRewardDto } from './dto/create-reward.dto';
-import { CreateRewardRequestDto } from './dto/create-reward-request.dto';
+import { CreateRewardDto } from './dto/reward/create-reward.dto';
+import { CreateRewardRequestDto } from './dto/reward-request/create-reward-request.dto';
 import { EventsService } from '../events/events.service';
-import { Event } from '../events/schemas/event.schema';
+import { Event, EventStatus } from '../events/schemas/event.schema';
 
 @Injectable()
 export class RewardsService {
@@ -14,14 +14,33 @@ export class RewardsService {
     @InjectModel(Reward.name) private readonly rewardModel: Model<Reward>,
     @InjectModel(RewardRequest.name) private readonly rewardRequestModel: Model<RewardRequest>,
     private readonly eventsService: EventsService,
-  ) {}
+  ) { }
+
+  private transformToRewardSchema(createRewardDto: CreateRewardDto): Partial<Reward> {
+    const { eventId, category, subType, content } = createRewardDto;
+
+    return {
+      eventId: new Types.ObjectId(eventId),
+      category,
+      subType,
+      name: content.name,
+      description: content.description,
+      quantity: content.quantity,
+      imageUrl: content.imageUrl ?? undefined,
+      metadata: content.metadata,
+    };
+  }
 
   async create(createRewardDto: CreateRewardDto): Promise<Reward> {
     const event: Event = await this.eventsService.findOne(createRewardDto.eventId) as Event;
-    const reward = new this.rewardModel(createRewardDto);
-    const savedReward = await reward.save();
+    if (!event || event.status !== EventStatus.ACTIVE) {
+      throw new BadRequestException('Event does not exist or is not active');
+    }
 
-    // Update event with new reward
+    const rewardData = this.transformToRewardSchema(createRewardDto);
+    const createdReward = new this.rewardModel(rewardData);
+    const savedReward = await createdReward.save();
+
     await this.eventsService.update(createRewardDto.eventId, {
       rewards: [...((event.rewards || []) as Types.ObjectId[]), savedReward._id as Types.ObjectId],
     });
@@ -36,13 +55,18 @@ export class RewardsService {
   async findOne(id: string): Promise<Reward> {
     const reward = await this.rewardModel.findById(id).populate('eventId').exec();
     if (!reward) {
-      throw new NotFoundException('Reward not found');
+      throw new NotFoundException(`Reward with ID ${id} not found`);
     }
     return reward;
   }
 
   async findByEvent(eventId: string): Promise<Reward[]> {
-    return this.rewardModel.find({ eventId }).populate('eventId').exec();
+    const rewards = await this.rewardModel.find({ eventId: new Types.ObjectId(eventId) }).populate('eventId').exec();
+
+    if (!rewards || rewards.length === 0) {
+      throw new NotFoundException(`No rewards found for event with ID ${eventId}`);
+    }
+    return rewards;
   }
 
   async createRequest(userId: string, createRewardRequestDto: CreateRewardRequestDto): Promise<RewardRequestDocument> {
@@ -107,7 +131,7 @@ export class RewardsService {
     }
 
     request.status = 'APPROVED';
-    request.approvedBy = approverId;
+    // request.approvedBy = approverId;
     request.responseData = { approvedAt: new Date() };
 
     return request.save();
@@ -120,7 +144,7 @@ export class RewardsService {
     }
 
     request.status = 'REJECTED';
-    request.rejectedBy = rejectorId;
+    // request.rejectedBy = rejectorId;
     request.rejectionReason = reason;
     request.responseData = { rejectedAt: new Date() };
 
