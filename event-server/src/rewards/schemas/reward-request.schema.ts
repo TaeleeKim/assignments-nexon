@@ -4,6 +4,12 @@ import { RewardCategory } from './reward.schema';
 
 export type RewardRequestDocument = RewardRequest & Document;
 
+export enum RewardRequestStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+}
+
 @Schema({ timestamps: true })
 export class RewardRequest {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
@@ -12,41 +18,35 @@ export class RewardRequest {
   @Prop({ type: Types.ObjectId, ref: 'Event', required: true })
   eventId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Reward', required: true })
-  rewardId: Types.ObjectId;
+  // pending은 operator approval 이 필요한 상태
+  @Prop({ required: true, enum: RewardRequestStatus, default: RewardRequestStatus.PENDING })
+  status: RewardRequestStatus;
 
-  @Prop({ required: true, enum: ['PENDING', 'APPROVED', 'REJECTED'], default: 'PENDING' })
-  status: string;
-
-  @Prop({ required: true })
-  quantity: number;
-
-  @Prop({ type: Object })
-  rewardData?: {
-    category: RewardCategory;
-    subType: string;
-    name: string;
-    description: string;
-    metadata?: Record<string, any>;
+  @Prop({ type: Object, required: true })
+  history: {
+    requestAt: Date;
+    status: RewardRequestStatus;
+    conditionStatus: {
+      [key: string]: {
+        required: any;
+        actual: any;
+        isMet: boolean;
+      };
+    };
   };
 
-  @Prop()
-  approvedAt?: Date;
-
-  @Prop()
-  rejectedAt?: Date;
-
-  @Prop()
-  rejectionReason?: string;
-
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  approvedBy?: Types.ObjectId;
-
-  @Prop({ type: Types.ObjectId, ref: 'User' })
-  rejectedBy?: Types.ObjectId;
+  @Prop({ type: Object })
+  approvedData?: {
+    approvedAt: Date;
+    approvedBy: Types.ObjectId | null; // null일 경우 시스템 체크
+  }
 
   @Prop({ type: Object })
-  responseData?: any;
+  rejectedData?: {
+    rejectedAt: Date;
+    rejectedBy: Types.ObjectId | null; // null일 경우 시스템 체크
+    rejectionReason: string;
+  }
 }
 
 export const RewardRequestSchema = SchemaFactory.createForClass(RewardRequest); 

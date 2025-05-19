@@ -72,9 +72,6 @@ export class Reward extends Document {
   @Prop({ required: true })
   description: string;
 
-  @Prop({ required: true })
-  quantity: number;
-
   @Prop()
   imageUrl?: string;
 

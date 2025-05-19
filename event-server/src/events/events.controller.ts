@@ -15,7 +15,7 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
 import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
 
-@ApiTags('events')
+@ApiTags('Events')
 @Controller('events')
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}

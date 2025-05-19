@@ -37,7 +37,7 @@ export class CreateEventDto {
   @IsNotEmpty()
   status: EventStatus;
 
-  @ApiProperty({ example: '{ "login": "true" }', description: '이벤트 조건' })
+  @ApiProperty({ example: '{ "login": true }', description: '이벤트 조건' })
   @IsObject()
   @IsNotEmpty()
   conditions: Record<string, any>;

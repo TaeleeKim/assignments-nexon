@@ -1,9 +1,18 @@
-import { IsEnum, IsNotEmpty } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsMongoId } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { BaseRewardDto } from './base-reward.dto';
+import { RewardContentDto } from './reward-content.dto';
 import { RewardCategory, PointsType, ItemType, CouponType, CurrencyType, ExperienceType } from '../../schemas/reward.schema';
 
-export class PointsRewardDto extends BaseRewardDto {
+export class PointsRewardDto extends RewardContentDto {
+  @ApiProperty({
+    type: String,
+    example: 'event123',
+    description: '이벤트 ID',
+    required: true,
+  })
+  @IsMongoId()
+  eventId: string;
+
   @ApiProperty({ 
     enum: RewardCategory, 
     example: RewardCategory.POINTS,
@@ -25,7 +34,16 @@ export class PointsRewardDto extends BaseRewardDto {
   subType: PointsType;
 }
 
-export class ItemRewardDto extends BaseRewardDto {
+export class ItemRewardDto extends RewardContentDto {
+  @ApiProperty({
+    type: String,
+    example: 'event123',
+    description: '이벤트 ID',
+    required: true,
+  })
+  @IsMongoId()
+  eventId: string;
+  
   @ApiProperty({ 
     enum: RewardCategory, 
     example: RewardCategory.ITEM,
@@ -47,7 +65,16 @@ export class ItemRewardDto extends BaseRewardDto {
   subType: ItemType;
 }
 
-export class CouponRewardDto extends BaseRewardDto {
+export class CouponRewardDto extends RewardContentDto {
+  @ApiProperty({
+    type: String,
+    example: 'event123',
+    description: '이벤트 ID',
+    required: true,
+  })
+  @IsMongoId()
+  eventId: string;
+
   @ApiProperty({ 
     enum: RewardCategory, 
     example: RewardCategory.COUPON,
@@ -69,7 +96,16 @@ export class CouponRewardDto extends BaseRewardDto {
   subType: CouponType;
 }
 
-export class CurrencyRewardDto extends BaseRewardDto {
+export class CurrencyRewardDto extends RewardContentDto {
+  @ApiProperty({
+    type: String,
+    example: 'event123',
+    description: '이벤트 ID',
+    required: true,
+  })
+  @IsMongoId()
+  eventId: string;
+
   @ApiProperty({ 
     enum: RewardCategory, 
     example: RewardCategory.CURRENCY,
@@ -91,7 +127,16 @@ export class CurrencyRewardDto extends BaseRewardDto {
   subType: CurrencyType;
 }
 
-export class ExperienceRewardDto extends BaseRewardDto {
+export class ExperienceRewardDto extends RewardContentDto {
+  @ApiProperty({
+    type: String,
+    example: 'event123',
+    description: '이벤트 ID',
+    required: true,
+  })
+  @IsMongoId()
+  eventId: string;
+  
   @ApiProperty({ 
     enum: RewardCategory, 
     example: RewardCategory.EXPERIENCE,
