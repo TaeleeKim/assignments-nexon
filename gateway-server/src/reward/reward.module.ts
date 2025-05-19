@@ -8,23 +8,12 @@ import { RewardsService } from './reward.service';
   imports: [
     ClientsModule.registerAsync([
       {
-        name: 'EVENT_SERVICE',
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.TCP,
-          options: {
-            host: configService.get('EVENT_SERVICE_HOST'),
-            port: configService.get('EVENT_SERVICE_PORT'),
-          },
-        }),
-        inject: [ConfigService],
-      },
-      {
         name: 'REWARD_SERVICE',
         useFactory: (configService: ConfigService) => ({
           transport: Transport.TCP,
           options: {
-            host: configService.get('EVENT_SERVICE_HOST'),
-            port: configService.get('EVENT_SERVICE_PORT'),
+            host: 'event-server',
+            port: 3002,
           },
         }),
         inject: [ConfigService],

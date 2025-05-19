@@ -16,8 +16,8 @@ import { LocalStrategy } from '../strategies/local.strategy';
         useFactory: (configService: ConfigService) => ({
           transport: Transport.TCP,
           options: {
-            host: configService.get('AUTH_SERVICE_HOST'),
-            port: configService.get('AUTH_SERVICE_PORT'),
+            host: 'auth-server',
+            port: 3001,
           },
         }),
         inject: [ConfigService],

@@ -12,8 +12,8 @@ import { EventsService } from './event.service';
         useFactory: (configService: ConfigService) => ({
           transport: Transport.TCP,
           options: {
-            host: configService.get('EVENT_SERVICE_HOST'),
-            port: configService.get('EVENT_SERVICE_PORT'),
+            host: 'event-server',
+            port: 3002,
           },
         }),
         inject: [ConfigService],
