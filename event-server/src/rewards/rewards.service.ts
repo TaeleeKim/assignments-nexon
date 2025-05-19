@@ -7,6 +7,7 @@ import { CreateRewardDto } from './dto/reward/create-reward.dto';
 import { CreateRewardRequestDto } from './dto/reward-request/create-reward-request.dto';
 import { EventsService } from '../events/events.service';
 import { Event, EventStatus } from '../events/schemas/event.schema';
+import { UpdateRewardRequestDto } from './dto/reward-request/update-reward-request.dto';
 
 @Injectable()
 export class RewardsService {
@@ -44,8 +45,14 @@ export class RewardsService {
     return savedReward;
   }
 
-  async findAll(): Promise<Reward[]> {
-    return this.rewardModel.find().populate('eventId').exec();
+  async findAll(eventId?: string): Promise<Reward[]> {
+    const query = eventId ? { eventId: new Types.ObjectId(eventId) } : {};
+    const rewards = await this.rewardModel.find(query).exec();
+
+    if (!rewards || rewards.length === 0) {
+      throw new NotFoundException(`No rewards found for event with ID ${eventId}`);
+    }
+    return rewards;
   }
 
   async findOne(id: string): Promise<Reward> {
@@ -56,17 +63,7 @@ export class RewardsService {
     return reward;
   }
 
-  async findByEvent(eventId: string): Promise<Reward[]> {
-    const rewards = await this.rewardModel.find({ eventId: new Types.ObjectId(eventId) }).populate('eventId').exec();
-
-    if (!rewards || rewards.length === 0) {
-      throw new NotFoundException(`No rewards found for event with ID ${eventId}`);
-    }
-    return rewards;
-  }
-
   async checkCondition(condition: Record<string, any>, conditionStatus: Record<string, any>): Promise<{ result: RewardRequestStatus, checkResult: Record<string, any> }> {
-    // 조건 충족 시 true, 미충족 시 false
     let result = true;
     let checkResult = {};
     const keys = Object.keys(condition);
@@ -88,22 +85,24 @@ export class RewardsService {
     };
   }
 
-  async transformToRewardRequestSchema(userId: string, condition: Record<string, any>, createRewardRequestDto: CreateRewardRequestDto): Promise<RewardRequest> {
+  async createNewRewardRequestSchema(userId: string, event: Event, createRewardRequestDto: CreateRewardRequestDto): Promise<RewardRequest> {
     const { eventId, conditionStatus } = createRewardRequestDto;
     
-    // condition 이 operator에 의해 결정되는 경우 -> pending
-
-    const { result, checkResult } = await this.checkCondition(condition, conditionStatus);
+    const { result, checkResult } = await this.checkCondition(event.conditions, conditionStatus);
+    
+    // 조건 만족 여부가 operator에 의해 결정되는 경우 -> pending
+    // 조건 만족 여부가 시스템에 의해 결정되는 경우 -> approved or rejected
+    const status = event.needApproval ? RewardRequestStatus.PENDING : result;
 
     return {
       userId: new Types.ObjectId(userId),
       eventId: new Types.ObjectId(eventId),
-      status: result,
-      history: {
+      status: status,
+      history: [{
         requestAt: new Date(),
         status: result,
         conditionStatus: checkResult,
-      },
+      }],
       approvedData: result === RewardRequestStatus.APPROVED ? {
         approvedAt: new Date(),
         approvedBy: null,
@@ -116,12 +115,12 @@ export class RewardsService {
     };
   }
 
-  async createRequest(userId: string, createRewardRequestDto: CreateRewardRequestDto): Promise<RewardRequestDocument> {
+  async createRequest(userId: string, createRewardRequestDto: CreateRewardRequestDto): Promise<{ status: RewardRequestStatus, rewards: Reward[] }> {
     const { eventId, conditionStatus } = createRewardRequestDto;
 
     const event = await this.eventsService.findOne(eventId);
-    if (!event || event.status !== 'ACTIVE') {
-      throw new BadRequestException('Event does not exist or is not active');
+    if (!event || event.status !== 'ACTIVE' || new Date() > event.endDate) {
+      throw new BadRequestException('Event does not exist, is not active, or has ended');
     }
 
     const existingRequest = await this.rewardRequestModel.findOne({
@@ -129,25 +128,64 @@ export class RewardsService {
       eventId: new Types.ObjectId(eventId),
     });
 
-    if (existingRequest && existingRequest.status === RewardRequestStatus.PENDING) {
-      throw new BadRequestException('User already has a pending request for this event');
+    let currentStatus = RewardRequestStatus.REJECTED;
+    if(existingRequest) {
+      if(existingRequest.status === RewardRequestStatus.PENDING) {
+        throw new BadRequestException('User already has a pending request for this event');
+      }
+      if(existingRequest.status === RewardRequestStatus.APPROVED) {
+        throw new BadRequestException('User already has a approved request for this event');
+      }
+
+      // 이미 요청이 있고, 거절된 경우 -> 현재 상태 update & 히스토리 추가
+      const { result, checkResult } = await this.checkCondition(event.conditions, conditionStatus);
+      currentStatus = result;
+      existingRequest.status = currentStatus;
+      await this.rewardRequestModel.updateOne(
+        { _id: existingRequest._id },
+        { 
+          $push: { 
+            history: {
+              requestAt: new Date(),
+              status: currentStatus,
+              conditionStatus: checkResult,
+            }
+          }
+        }
+      );
+    }
+    else {
+      const rewardRequest = await this.createNewRewardRequestSchema(userId, event, createRewardRequestDto);
+      const request = new this.rewardRequestModel(rewardRequest);
+      await request.save();
+      currentStatus = rewardRequest.status;
     }
 
-    if (existingRequest && existingRequest.status === RewardRequestStatus.APPROVED) {
-      throw new BadRequestException('User already has a approved request for this event');
+    let rewards: Reward[] = [];
+    if(currentStatus === RewardRequestStatus.APPROVED) {
+      rewards = await this.findAll(eventId);
     }
-
-    const rewardRequest = await this.transformToRewardRequestSchema(userId, event.conditions, createRewardRequestDto);
-
-    const request = new this.rewardRequestModel(rewardRequest);
-    return request.save();
+    return {
+      status: currentStatus,
+      rewards,
+    };
   }
 
-  async findAllRequests(query: any): Promise<RewardRequest[]> {
+  async findAllRequestsSimple(page: number, limit: number, userId?: string, eventId?: string, status?: string, ): Promise<RewardRequest[]> {
+    const query: any = {};
+    if (userId) {
+      query.userId = new Types.ObjectId(userId);
+    }
+    if (eventId) {
+      query.eventId = new Types.ObjectId(eventId);
+    }
+    if (status) {
+      query.status = status;
+    }
     return this.rewardRequestModel
       .find(query)
-      .populate('eventId')
-      .populate('userId')
+      .skip((page - 1) * limit)
+      .limit(limit)
       .exec();
   }
 
@@ -155,7 +193,7 @@ export class RewardsService {
     const request = await this.rewardRequestModel
       .findById(id)
       .populate('eventId')
-      .populate('rewardId')
+      .populate('userId')
       .exec();
     if (!request) {
       throw new NotFoundException('Reward request not found');
@@ -175,29 +213,45 @@ export class RewardsService {
     return request.save();
   }
 
-  async rejectRequest(id: string, rejectorId: string, reason: string): Promise<RewardRequestDocument> {
+  async rejectRequest(id: string, rejectorId: string, rejectionReason?: string): Promise<RewardRequestDocument> {
     const request = await this.findOneRequest(id);
     if (request.status !== 'PENDING') {
       throw new BadRequestException('Request is not pending');
     }
 
     request.status = RewardRequestStatus.REJECTED;
-    request.rejectedData = { rejectedAt: new Date(), rejectedBy: new Types.ObjectId(rejectorId), rejectionReason: reason };
+    request.rejectedData = { rejectedAt: new Date(), rejectedBy: new Types.ObjectId(rejectorId), rejectionReason: rejectionReason ?? ``};
 
     return request.save();
   }
 
-  async updateRequestStatus(id: string, updateStatusDto: { status: 'APPROVED' | 'REJECTED', reason?: string }, userId: string): Promise<RewardRequestDocument> {
+  async updateRequestStatus(id: string, updateStatusDto: UpdateRewardRequestDto, userId: string): Promise<{
+    status: RewardRequestStatus,
+    rewards: Reward[],
+    approvedData: object | undefined,
+    rejectedData: object | undefined,
+  }> {
     const request = await this.findOneRequest(id);
     if (request.status !== 'PENDING') {
       throw new BadRequestException('Request is not pending');
     }
-    // conditionStatus 확인
-    // 조건 충족 시 보상 부여
-    // 조건 미충족 시 보상 거절
-    // 보상 부여 시 보상 공급
-    // 보상 거절 시 보상 공급 취소
-    return request.save();
-    
+    let rewards: Reward[] = [];
+    if(updateStatusDto.status === RewardRequestStatus.APPROVED) {
+      rewards = await this.findAll(request.eventId.toString());
+    }
+
+    if(updateStatusDto.status === RewardRequestStatus.APPROVED) {
+      await this.approveRequest(id, userId);
+    }
+    else if(updateStatusDto.status === RewardRequestStatus.REJECTED) {
+      await this.rejectRequest(id, userId, updateStatusDto.rejectionReason);
+    }
+
+    return {
+      status: updateStatusDto.status,
+      rewards,
+      approvedData: request.approvedData ?? undefined,
+      rejectedData: request.rejectedData ?? undefined,
+    };
   }
 } 

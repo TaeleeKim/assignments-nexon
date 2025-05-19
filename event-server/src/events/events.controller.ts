@@ -12,7 +12,7 @@ import {
 } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiBody, PartialType } from '@nestjs/swagger';
 import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
 
 @ApiTags('Events')
@@ -64,6 +64,7 @@ export class EventsController {
   @ApiResponse({ status: 200, description: '이벤트 수정 성공' })
   @ApiResponse({ status: 401, description: '인증되지 않음' })
   @ApiResponse({ status: 403, description: '권한 없음' })
+  @ApiBody({ type: PartialType(CreateEventDto) }) 
   update(@Param('id', MongoIdPipe) id: string, @Body() updateEventDto: Partial<CreateEventDto>) {
     return this.eventsService.update(id, updateEventDto);
   }

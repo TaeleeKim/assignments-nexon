@@ -28,9 +28,14 @@ export class Event extends Document {
 
   @Prop({ required: true })
   startDate: Date;
-
+  
   @Prop({ required: true })
   endDate: Date;
+  
+  // 조건 만족 여부가 operator에 의해 결정되는 경우 -> pending
+  // 조건 만족 여부가 시스템에 의해 결정되는 경우 -> approved or rejected
+  @Prop({ required: true, default: false })
+  needApproval: boolean;
 
   @Prop({ type: Object })
   conditions: Record<string, any>;

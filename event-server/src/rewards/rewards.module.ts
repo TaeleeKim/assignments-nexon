@@ -9,11 +9,14 @@ import { RewardRequestsController } from './rewards.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from 'strategies/jwt.strategy';
+import { User, UserSchema } from '../users/schemas/user.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Reward.name, schema: RewardSchema },
       { name: RewardRequest.name, schema: RewardRequestSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     EventsModule,
     JwtModule.registerAsync({

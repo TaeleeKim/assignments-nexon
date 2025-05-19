@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsDate, IsObject, IsOptional, IsArray, IsNotEmpty } from 'class-validator';
+import { IsString, IsEnum, IsDate, IsObject, IsOptional, IsArray, IsNotEmpty, IsBoolean } from 'class-validator';
 import { Type } from 'class-transformer';
 import { EventType, EventStatus } from '../schemas/event.schema';
 import { Types } from 'mongoose';
@@ -16,7 +16,7 @@ export class CreateEventDto {
   @IsNotEmpty()
   startDate: Date;
 
-  @ApiProperty({ example: '2025-05-18T23:59:59Z', description: '이벤트 종료일' })
+  @ApiProperty({ example: '2025-07-18T23:59:59Z', description: '이벤트 종료일' })
   @Type(() => Date)
   @IsDate()
   @IsNotEmpty()
@@ -37,7 +37,18 @@ export class CreateEventDto {
   @IsNotEmpty()
   status: EventStatus;
 
-  @ApiProperty({ example: '{ "login": true }', description: '이벤트 조건' })
+  @ApiProperty({example: false, default: false, description: 'true인 경우 운영자의 승인이 필요요'})
+  @IsBoolean()
+  @IsNotEmpty()
+  needApproval: boolean = false;
+
+  @ApiProperty({ 
+    example: {
+      login: true,
+      invite: true,
+      purchase: true,
+      quest: 'quest_id_1',
+    }, description: '이벤트 조건' })
   @IsObject()
   @IsNotEmpty()
   conditions: Record<string, any>;

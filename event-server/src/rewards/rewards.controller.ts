@@ -11,16 +11,19 @@ import {
 } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
 import { CreateRewardDto } from './dto/reward/create-reward.dto';
-import { CreateRewardRequestDto } from './dto/reward-request/create-reward-request.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
-import { ApiBody, ApiExtraModels, ApiOperation, ApiQuery, getSchemaPath, OmitType, ApiTags, ApiBearerAuth, ApiParam } from '@nestjs/swagger';
-import { RewardCategory, SUBTYPE_ENUMS, RewardSubType } from './schemas/reward.schema';
+import { ApiBody, ApiExtraModels, ApiOperation, ApiQuery, getSchemaPath, OmitType, ApiTags, ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { RewardCategory, SUBTYPE_ENUMS, RewardSubType, Reward } from './schemas/reward.schema';
 import { REWARD_DTOS } from './dto/reward/create-reward.dto';
 import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
 import { DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RewardContentDto } from './dto/reward/reward-content.dto';
+import { CreateRewardRequestDto } from './dto/reward-request/create-reward-request.dto';
+import { CreateRewardResponseDto } from './dto/reward-request/create-reward-response.dto';
+import { UpdateRewardRequestDto } from './dto/reward-request/update-reward-request.dto';
+import { UpdateRewardResponseDto } from './dto/reward-request/update-reward-response.dto';
 
 @ApiTags('Rewards')
 @Controller('rewards')
@@ -50,6 +53,7 @@ export class RewardsController {
     enum: Object.values(SUBTYPE_ENUMS).flatMap(enumObj => Object.values(enumObj))
   })
   @ApiBody({
+    description: 'conditionStatus 예시: ITEM/GAME_ITEM -> {itemCode: "ITEM_001", rarity: "RARE"}, POINTS/REGULAR -> {quantity: 1000}',
     type: RewardContentDto  
   })
   create(
@@ -69,8 +73,9 @@ export class RewardsController {
 
   @Get()
   @ApiOperation({ summary: '[only ADMIN, OPERATOR] 보상 목록 조회' })
-  findAll() {
-    return this.rewardsService.findAll();
+  @ApiQuery({ name: 'eventId', required: false, description: '이벤트 ID로 필터링' })
+  findAll(@Query('eventId') eventId?: string) {
+    return this.rewardsService.findAll(eventId);
   }
 
   @Get(':id')
@@ -78,16 +83,10 @@ export class RewardsController {
   findOne(@Param('id', MongoIdPipe) id: string) {
     return this.rewardsService.findOne(id);
   }
-
-  @Get('event/:eventId')
-  @ApiOperation({ summary: '[only ADMIN, OPERATOR] 이벤트별 보상 조회' })
-  findByEvent(@Param('eventId', MongoIdPipe) eventId: string) {
-    return this.rewardsService.findByEvent(eventId);
-  }
 } 
 
 @ApiTags('Reward Requests')
-@Controller('rewards/requests')
+@Controller('reward-requests')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class RewardRequestsController {
@@ -105,26 +104,32 @@ export class RewardRequestsController {
   @ApiBody({
     type: OmitType(CreateRewardRequestDto, ['eventId'])
   })
-  createRequest(
+  @ApiResponse({
+    status: 200,
+    description: '보상 요청 생성, 자동 승인 시 Reward 목록 반환',
+    type: [Reward]
+  })
+  async createRequest(
     @Request() req,
     @Param('eventId', MongoIdPipe) eventId: string,
     @Body() createRewardRequestDto: Omit<CreateRewardRequestDto, 'eventId'>
-  ) {
+  ): Promise<CreateRewardResponseDto> {
     const rewardRequestDto = {
       ...createRewardRequestDto,
       eventId
     } as CreateRewardRequestDto;
-    return this.rewardsService.createRequest(req.user.userId, rewardRequestDto);
+    const {status, rewards} = await this.rewardsService.createRequest(req.user.userId, rewardRequestDto);
+    return new CreateRewardResponseDto(status, rewards);
   }
-
+ 
   @Get()
-  // @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.AUDITOR)
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.AUDITOR)
   @ApiOperation({ summary: '[ADMIN, OPERATOR, AUDITOR] 보상 요청 목록 조회' })
   @ApiQuery({ name: 'userId', required: false, description: '사용자 ID로 필터링' })
   @ApiQuery({ name: 'eventId', required: false, description: '이벤트 ID로 필터링' })
   @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'] })
-  @ApiQuery({ name: 'page', required: true, type: Number })
-  @ApiQuery({ name: 'limit', required: true, type: Number })
+  @ApiQuery({ name: 'page', required: true, default: 1, type: Number })
+  @ApiQuery({ name: 'limit', required: true, default: 10, type: Number })
   findAllRequests(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -132,7 +137,7 @@ export class RewardRequestsController {
     @Query('eventId') eventId?: string | undefined,
     @Query('status') status?: string | undefined,
   ) {
-    return this.rewardsService.findAllRequests({ userId, eventId, status, page, limit });
+    return this.rewardsService.findAllRequestsSimple(page, limit, userId, eventId, status);
   }
 
   @Get(':id')
@@ -144,26 +149,27 @@ export class RewardRequestsController {
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   @ApiOperation({ summary: '[ADMIN, OPERATOR] 보상 요청 상태 업데이트' })
-  updateRequest(
+  async updateRequest(
     @Param('id', MongoIdPipe) id: string,
-    @Body() updateRequestDto: { status: 'APPROVED' | 'REJECTED', reason?: string },
+    @Body() updateRequestDto: UpdateRewardRequestDto,
     @Request() req
-  ) {
-    return this.rewardsService.updateRequestStatus(id, updateRequestDto, req.user.userId);
+  ): Promise<UpdateRewardResponseDto> {
+    const {status, rewards, approvedData, rejectedData} = await this.rewardsService.updateRequestStatus(id, updateRequestDto, req.user.userId);
+    return new UpdateRewardResponseDto(status, rewards, approvedData, rejectedData);
   }
 
   @Get('user/me')
   @Roles(UserRole.USER)
   @ApiOperation({ summary: '[only USER] 내 보상 요청 히스토리 조회' })
+  @ApiQuery({ name: 'page', required: true, default: 1, type: Number })
+  @ApiQuery({ name: 'limit', required: true, default: 10, type: Number })
   @ApiQuery({ name: 'eventId', required: false, description: '이벤트 ID로 필터링' })
-  @ApiQuery({ name: 'page', required: false, type: Number })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
   getMyRequestHistory(
     @Request() req,
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('eventId') eventId?: string | undefined,
+    @Query('eventId', MongoIdPipe) eventId?: string | undefined,
   ) {
-    // return this.rewardsService.getUserRequestHistory(req.user.userId, { eventId, page, limit });
+    return this.rewardsService.findAllRequestsSimple(page, limit, req.user.userId, eventId);
   }
 }

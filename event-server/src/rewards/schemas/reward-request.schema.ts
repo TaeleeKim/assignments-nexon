@@ -22,8 +22,8 @@ export class RewardRequest {
   @Prop({ required: true, enum: RewardRequestStatus, default: RewardRequestStatus.PENDING })
   status: RewardRequestStatus;
 
-  @Prop({ type: Object, required: true })
-  history: {
+  @Prop({ type: Array, required: true })
+  history: [{
     requestAt: Date;
     status: RewardRequestStatus;
     conditionStatus: {
@@ -33,7 +33,7 @@ export class RewardRequest {
         isMet: boolean;
       };
     };
-  };
+  }];
 
   @Prop({ type: Object })
   approvedData?: {

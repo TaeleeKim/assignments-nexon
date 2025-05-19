@@ -14,11 +14,7 @@ export class CreateRewardRequestDto {
       login: true,
       invite: true,
       purchase: true,
-      quest: {
-        "id_1": true,
-        "id_2": true,
-        "id_3": true,
-      }
+      quest: 'quest_id_1',
     }
    })
   conditionStatus: Record<string, any>;
