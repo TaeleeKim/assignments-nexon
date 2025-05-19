@@ -11,14 +11,15 @@ import {
 } from '@nestjs/common';
 import { RewardsService } from './rewards.service';
 import { CreateRewardDto } from './dto/reward/create-reward.dto';
-import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '../users/schemas/user.schema';
 import { ApiBody, ApiExtraModels, ApiOperation, ApiQuery, getSchemaPath, OmitType, ApiTags, ApiBearerAuth, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { RewardCategory, SUBTYPE_ENUMS, RewardSubType, Reward } from './schemas/reward.schema';
 import { REWARD_DTOS } from './dto/reward/create-reward.dto';
 import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
 import { DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
-import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RolesGuard } from '../guards/roles.guard';
+import { Roles } from '../decorators/roles.decorator';
 import { RewardContentDto } from './dto/reward/reward-content.dto';
 import { CreateRewardRequestDto } from './dto/reward-request/create-reward-request.dto';
 import { CreateRewardResponseDto } from './dto/reward-request/create-reward-response.dto';
@@ -27,6 +28,8 @@ import { UpdateRewardResponseDto } from './dto/reward-request/update-reward-resp
 
 @ApiTags('Rewards')
 @Controller('rewards')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiBearerAuth()
 @ApiExtraModels(...Object.values(REWARD_DTOS))
 export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) {}
@@ -72,6 +75,7 @@ export class RewardsController {
   }
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   @ApiOperation({ summary: '[only ADMIN, OPERATOR] 보상 목록 조회' })
   @ApiQuery({ name: 'eventId', required: false, description: '이벤트 ID로 필터링' })
   findAll(@Query('eventId') eventId?: string) {
@@ -79,6 +83,7 @@ export class RewardsController {
   }
 
   @Get(':id')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   @ApiOperation({ summary: '[only ADMIN, OPERATOR] 보상 상세 조회' })
   findOne(@Param('id', MongoIdPipe) id: string) {
     return this.rewardsService.findOne(id);
@@ -87,7 +92,7 @@ export class RewardsController {
 
 @ApiTags('Reward Requests')
 @Controller('reward-requests')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class RewardRequestsController {
   constructor(private readonly rewardsService: RewardsService) {}
@@ -107,7 +112,7 @@ export class RewardRequestsController {
   @ApiResponse({
     status: 200,
     description: '보상 요청 생성, 자동 승인 시 Reward 목록 반환',
-    type: [Reward]
+    type: CreateRewardResponseDto
   })
   async createRequest(
     @Request() req,
@@ -118,8 +123,7 @@ export class RewardRequestsController {
       ...createRewardRequestDto,
       eventId
     } as CreateRewardRequestDto;
-    const {status, rewards} = await this.rewardsService.createRequest(req.user.userId, rewardRequestDto);
-    return new CreateRewardResponseDto(status, rewards);
+    return await this.rewardsService.createRequest(req.user.userId, rewardRequestDto);
   }
  
   @Get()
@@ -141,7 +145,8 @@ export class RewardRequestsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '[ADMIN, OPERATOR, AUDITOR, USER] 보상 요청 상세 조회' })
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.AUDITOR)
+  @ApiOperation({ summary: '[ADMIN, AUDITOR] 보상 요청 상세 조회' })
   findOneRequest(@Param('id', MongoIdPipe) id: string) {
     return this.rewardsService.findOneRequest(id);
   }
@@ -154,8 +159,7 @@ export class RewardRequestsController {
     @Body() updateRequestDto: UpdateRewardRequestDto,
     @Request() req
   ): Promise<UpdateRewardResponseDto> {
-    const {status, rewards, approvedData, rejectedData} = await this.rewardsService.updateRequestStatus(id, updateRequestDto, req.user.userId);
-    return new UpdateRewardResponseDto(status, rewards, approvedData, rejectedData);
+    return await this.rewardsService.updateRequestStatus(id, updateRequestDto, req.user.userId);
   }
 
   @Get('user/me')

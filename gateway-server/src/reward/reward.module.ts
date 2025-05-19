@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
-import { RewardController } from './reward.controller';
-import { RewardService } from './reward.service';
+import { RewardRequestsController, RewardsController } from './reward.controller';
+import { RewardsService } from './reward.service';
 
 @Module({
   imports: [
@@ -18,10 +18,21 @@ import { RewardService } from './reward.service';
         }),
         inject: [ConfigService],
       },
+      {
+        name: 'REWARD_SERVICE',
+        useFactory: (configService: ConfigService) => ({
+          transport: Transport.TCP,
+          options: {
+            host: configService.get('EVENT_SERVICE_HOST'),
+            port: configService.get('EVENT_SERVICE_PORT'),
+          },
+        }),
+        inject: [ConfigService],
+      },
     ]),
   ],
-  controllers: [RewardController],
-  providers: [RewardService],
-  exports: [RewardService],
+  controllers: [RewardsController, RewardRequestsController],
+  providers: [RewardsService],
+  exports: [RewardsService],
 })
 export class RewardModule {} 

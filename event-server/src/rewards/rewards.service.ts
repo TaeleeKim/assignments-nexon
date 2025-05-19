@@ -8,6 +8,8 @@ import { CreateRewardRequestDto } from './dto/reward-request/create-reward-reque
 import { EventsService } from '../events/events.service';
 import { Event, EventStatus } from '../events/schemas/event.schema';
 import { UpdateRewardRequestDto } from './dto/reward-request/update-reward-request.dto';
+import { CreateRewardResponseDto } from './dto/reward-request/create-reward-response.dto';
+import { UpdateRewardResponseDto } from './dto/reward-request/update-reward-response.dto';
 
 @Injectable()
 export class RewardsService {
@@ -115,7 +117,7 @@ export class RewardsService {
     };
   }
 
-  async createRequest(userId: string, createRewardRequestDto: CreateRewardRequestDto): Promise<{ status: RewardRequestStatus, rewards: Reward[] }> {
+  async createRequest(userId: string, createRewardRequestDto: CreateRewardRequestDto): Promise<CreateRewardResponseDto> {
     const { eventId, conditionStatus } = createRewardRequestDto;
 
     const event = await this.eventsService.findOne(eventId);
@@ -225,12 +227,7 @@ export class RewardsService {
     return request.save();
   }
 
-  async updateRequestStatus(id: string, updateStatusDto: UpdateRewardRequestDto, userId: string): Promise<{
-    status: RewardRequestStatus,
-    rewards: Reward[],
-    approvedData: object | undefined,
-    rejectedData: object | undefined,
-  }> {
+  async updateRequestStatus(id: string, updateStatusDto: UpdateRewardRequestDto, userId: string): Promise<UpdateRewardResponseDto> {
     const request = await this.findOneRequest(id);
     if (request.status !== 'PENDING') {
       throw new BadRequestException('Request is not pending');
@@ -247,11 +244,6 @@ export class RewardsService {
       await this.rejectRequest(id, userId, updateStatusDto.rejectionReason);
     }
 
-    return {
-      status: updateStatusDto.status,
-      rewards,
-      approvedData: request.approvedData ?? undefined,
-      rejectedData: request.rejectedData ?? undefined,
-    };
+    return new UpdateRewardResponseDto(updateStatusDto.status, rewards, request.approvedData, request.rejectedData);
   }
-} 
+}   

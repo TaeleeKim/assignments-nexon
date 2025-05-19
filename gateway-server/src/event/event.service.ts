@@ -1,46 +1,38 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
-import { firstValueFrom } from 'rxjs';
+import { CreateEventDto } from './dto/create-event.dto';
 
 @Injectable()
-export class EventService {
+export class EventsService {
   constructor(
-    @Inject('EVENT_SERVICE') private readonly eventClient: ClientProxy,
+    @Inject('EVENT_SERVICE') private readonly eventClient: ClientProxy
   ) {}
 
-  async createEvent(eventData: any) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'create_event' }, eventData),
-    );
+  async create(createEventDto: CreateEventDto) {
+    return await this.eventClient.send('create', createEventDto);
   }
 
-  async getEvents() {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'get_events' }, {}),
-    );
+  async findAllSimple(status?: string, type?: string) {
+    return await this.eventClient.send('findAllSimple', { status });
   }
 
-  async getEvent(id: string) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'get_event' }, { id }),
-    );
+  async findAllDetailed(status?: string, type?: string) {
+    return await this.eventClient.send('findAllDetailed', { status, type });
   }
 
-  async updateEvent(id: string, eventData: any) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'update_event' }, { id, ...eventData }),
-    );
+  async findOne(id: string) {
+    return await this.eventClient.send('findOne', { id });
   }
 
-  async deleteEvent(id: string) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'delete_event' }, { id }),
-    );
+  async findActive() {
+    return await this.eventClient.send('findActive', {});
   }
 
-  async getActiveEvents() {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'get_active_events' }, {}),
-    );
+  async update(id: string, updateEventDto: Partial<CreateEventDto>) {
+    return await this.eventClient.send('update', { id, ...updateEventDto });
+  }
+
+  async remove(id: string) {
+    return await this.eventClient.send('remove', { id });
   }
 } 

@@ -9,18 +9,26 @@ import {
   Query,
   DefaultValuePipe,
   ParseBoolPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiQuery, ApiParam, ApiBody, PartialType } from '@nestjs/swagger';
 import { MongoIdPipe } from '../common/pipes/mongo-id.pipe';
+import { UserRole } from '../users/schemas/user.schema';
+import { JwtAuthGuard } from '../guards/jwt-auth.guard';
+import { RolesGuard } from '../guards/roles.guard';
+import { Roles } from '../decorators/roles.decorator';
 
 @ApiTags('Events')
 @Controller('events')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@ApiBearerAuth()
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
   @Post()
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   @ApiOperation({ summary: '[only ADMIN, OPERATOR] 이벤트 생성' })
   @ApiResponse({ status: 201, description: '이벤트가 성공적으로 생성됨' })
   @ApiResponse({ status: 401, description: '인증되지 않음' })
@@ -31,6 +39,7 @@ export class EventsController {
   }
 
   @Get()
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.USER)
   @ApiOperation({ summary: '[except AUDITOR] 이벤트 목록 조회' })
   @ApiQuery({ name: 'status', required: false, enum: ['ACTIVE', 'INACTIVE', 'ENDED'] })
   @ApiQuery({ name: 'type', required: false, enum: ['DAILY', 'WEEKLY', 'MONTHLY', 'SPECIAL'] })
@@ -49,7 +58,8 @@ export class EventsController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: '[only ADMIN, OPERATOR] 특정 이벤트 조회' })
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.USER)
+  @ApiOperation({ summary: '[except AUDITOR] 특정 이벤트 조회' })
   @ApiParam({ name: 'id', description: '이벤트 ID' })
   @ApiResponse({ status: 200, description: '이벤트 조회 성공' })
   @ApiResponse({ status: 401, description: '인증되지 않음' })
@@ -59,6 +69,7 @@ export class EventsController {
   }
 
   @Patch(':id')
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
   @ApiOperation({ summary: '[only ADMIN, OPERATOR] 이벤트 수정' })
   @ApiParam({ name: 'id', description: '이벤트 ID' })
   @ApiResponse({ status: 200, description: '이벤트 수정 성공' })
@@ -70,7 +81,8 @@ export class EventsController {
   }
 
   @Delete(':id')
-  @ApiOperation({ summary: '[only ADMIN] 이벤트 삭제' })
+  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
+  @ApiOperation({ summary: '[only ADMIN, OPERATOR] 이벤트 삭제' })
   @ApiParam({ name: 'id', description: '이벤트 ID' })
   @ApiResponse({ status: 200, description: '이벤트 삭제 성공' })
   @ApiResponse({ status: 401, description: '인증되지 않음' })

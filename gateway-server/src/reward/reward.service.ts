@@ -1,58 +1,51 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
+import { CreateRewardDto } from './dto/reward/create-reward.dto';
+import { CreateRewardRequestDto } from './dto/reward-request/create-reward-request.dto';
+import { CreateRewardResponseDto } from './dto/reward-request/create-reward-response.dto';
+import { UpdateRewardRequestDto } from './dto/reward-request/update-reward-request.dto';
+import { UpdateRewardResponseDto } from './dto/reward-request/update-reward-response.dto';
 
 @Injectable()
-export class RewardService {
+export class RewardsService {
   constructor(
-    @Inject('EVENT_SERVICE') private readonly eventClient: ClientProxy,
+    @Inject('REWARD_SERVICE') private readonly rewardClient: ClientProxy
   ) {}
 
-  async createReward(rewardData: any) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'create_reward' }, rewardData),
-    );
+  async create(createRewardDto: CreateRewardDto) {
+    return await firstValueFrom(this.rewardClient.send('create', createRewardDto));
   }
 
-  async getRewards() {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'get_rewards' }, {}),
-    );
+  async findAll(eventId?: string) {
+    return await firstValueFrom(this.rewardClient.send('findAll', { eventId }));
   }
 
-  async getReward(id: string) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'get_reward' }, { id }),
-    );
+  async findOne(id: string) {
+    return await firstValueFrom(this.rewardClient.send('findOne', { id }));
   }
 
-  async getEventRewards(eventId: string) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'get_event_rewards' }, { eventId }),
-    );
+  async createRequest(userId: string, createRewardRequestDto: CreateRewardRequestDto): Promise<CreateRewardResponseDto> {
+    return await firstValueFrom(this.rewardClient.send('createRequest', { userId, createRewardRequestDto }));
   }
 
-  async createRewardRequest(userId: string, requestData: any) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'create_reward_request' }, { userId, ...requestData }),
-    );
+  async findAllRequestsSimple(page: number, limit: number, userId?: string, eventId?: string, status?: string) {
+    return await firstValueFrom(this.rewardClient.send('findAllRequestsSimple', { page, limit, userId, eventId, status }));
   }
 
-  async getRewardRequests(userId?: string) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'get_reward_requests' }, { userId }),
-    );
+  async findOneRequest(id: string) {
+    return await firstValueFrom(this.rewardClient.send('findOneRequest', { id }));
   }
 
-  async approveRewardRequest(id: string, approverId: string) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'approve_reward_request' }, { id, approverId }),
-    );
+  async approveRequest(id: string, approverId: string) {
+    return await firstValueFrom(this.rewardClient.send('approveRequest', { id, approverId }));
   }
 
-  async rejectRewardRequest(id: string, rejectorId: string, reason: string) {
-    return firstValueFrom(
-      this.eventClient.send({ cmd: 'reject_reward_request' }, { id, rejectorId, reason }),
-    );
+  async rejectRequest(id: string, rejectorId: string, rejectionReason?: string) {
+    return await firstValueFrom(this.rewardClient.send('rejectRequest', { id, rejectorId, rejectionReason }));
+  }
+  
+  async updateRequestStatus(id: string, updateStatusDto: UpdateRewardRequestDto, userId: string): Promise<UpdateRewardResponseDto> {
+    return await firstValueFrom(this.rewardClient.send('updateRequestStatus', { id, updateStatusDto, userId }));
   }
 } 

@@ -1,34 +1,25 @@
 import { Injectable, Inject } from '@nestjs/common';
-import { ClientProxy } from '@nestjs/microservices';
+import { ClientProxy, EventPattern } from '@nestjs/microservices';
 import { firstValueFrom } from 'rxjs';
+import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
   constructor(
     @Inject('AUTH_SERVICE') private readonly authClient: ClientProxy,
   ) {}
-
-  async validateToken(token: string) {
-    return firstValueFrom(
-      this.authClient.send({ cmd: 'validate_token' }, { token }),
-    );
-  }
-
+  @EventPattern('login')
   async login(email: string, password: string) {
-    return firstValueFrom(
-      this.authClient.send({ cmd: 'login' }, { email, password }),
-    );
+    return await firstValueFrom(this.authClient.send({ cmd: 'login' }, { email, password }));
   }
 
-  async register(userData: any) {
-    return firstValueFrom(
-      this.authClient.send({ cmd: 'register' }, userData),
-    );
+  
+  async register(registerData: RegisterDto) {
+    return await firstValueFrom(this.authClient.send({ cmd: 'register' }, registerData));
   }
 
-  async getProfile(userId: string) {
-    return firstValueFrom(
-      this.authClient.send({ cmd: 'get_profile' }, { userId }),
-    );
+  @EventPattern('validateUser')
+  async validateUser(email: string, password: string) {
+    return await firstValueFrom(this.authClient.send({ cmd: 'validateUser' }, { email, password }));
   }
 } 
