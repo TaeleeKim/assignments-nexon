@@ -1,0 +1,32 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "build",
+      "path": "auth-server",
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "label": "tsc: build - auth-server/tsconfig.json",
+      "detail": "tsc"
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "path": "event-server",
+      "group": "build",
+      "label": "tsc: build - event-server/tsconfig.json",
+      "detail": "tsc"
+    },
+    {
+      "type": "npm",
+      "script": "build",
+      "path": "gateway-server",
+      "group": "build",
+      "label": "tsc: build - gateway-server/tsconfig.json",
+      "detail": "tsc"
+    }
+  ]
+} 

@@ -1,0 +1,11 @@
+auth-server/node_modules
+event-server/node_modules
+gateway-server/node_modules
+
+auth-server/dist
+event-server/dist
+gateway-server/dist
+
+auth-server/.env
+event-server/.env
+gateway-server/.env
