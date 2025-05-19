@@ -25,6 +25,7 @@ import { CreateRewardRequestDto } from './dto/reward-request/create-reward-reque
 import { CreateRewardResponseDto } from './dto/reward-request/create-reward-response.dto';
 import { UpdateRewardRequestDto } from './dto/reward-request/update-reward-request.dto';
 import { UpdateRewardResponseDto } from './dto/reward-request/update-reward-response.dto';
+import { EventPattern, Payload } from '@nestjs/microservices';
 
 @ApiTags('Rewards')
 @Controller('rewards')
@@ -34,61 +35,21 @@ import { UpdateRewardResponseDto } from './dto/reward-request/update-reward-resp
 export class RewardsController {
   constructor(private readonly rewardsService: RewardsService) {}
 
-  @Post(':eventId')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  @ApiOperation({ summary: '[only ADMIN, OPERATOR] 보상 생성' })
-  @ApiParam({
-    name: 'eventId',
-    description: '이벤트 ID',
-    required: true,
-    type: String,
-  })
-  @ApiQuery({ 
-    name: 'category', 
-    enum: RewardCategory,
-    description: '보상 카테고리',
-    required: true 
-  })
-  @ApiQuery({ 
-    name: 'subType', 
-    description: '보상 세부 유형',
-    required: true,
-    enum: Object.values(SUBTYPE_ENUMS).flatMap(enumObj => Object.values(enumObj))
-  })
-  @ApiBody({
-    description: 'conditionStatus 예시: ITEM/GAME_ITEM -> {itemCode: "ITEM_001", rarity: "RARE"}, POINTS/REGULAR -> {quantity: 1000}',
-    type: RewardContentDto  
-  })
-  create(
-    @Param('eventId', MongoIdPipe) eventId: string,
-    @Query('category') category: RewardCategory,
-    @Query('subType') subType: RewardSubType,
-    @Body() createRewardDto: Omit<CreateRewardDto, 'category' | 'subType' | 'eventId'>
-  ) {
-    const rewardDto = {
-      ...createRewardDto,
-      eventId,
-      category,
-      subType
-    } as CreateRewardDto;
-    return this.rewardsService.create(rewardDto);
+  @EventPattern({ cmd: 'create' })
+  create(@Payload() createRewardDto: CreateRewardDto) {
+    return this.rewardsService.create(createRewardDto);
   }
 
-  @Get()
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  @ApiOperation({ summary: '[only ADMIN, OPERATOR] 보상 목록 조회' })
-  @ApiQuery({ name: 'eventId', required: false, description: '이벤트 ID로 필터링' })
-  findAll(@Query('eventId') eventId?: string) {
-    return this.rewardsService.findAll(eventId);
+  @EventPattern({ cmd: 'findAll' })
+  findAll(@Payload() data: { eventId?: string }) {
+    return this.rewardsService.findAll(data.eventId);
   }
 
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  @ApiOperation({ summary: '[only ADMIN, OPERATOR] 보상 상세 조회' })
-  findOne(@Param('id', MongoIdPipe) id: string) {
-    return this.rewardsService.findOne(id);
+  @EventPattern({ cmd: 'findOne' })
+  findOne(@Payload() data: { id: string }) {
+    return this.rewardsService.findOne(data.id);
   }
-} 
+}
 
 @ApiTags('Reward Requests')
 @Controller('reward-requests')
@@ -97,69 +58,44 @@ export class RewardsController {
 export class RewardRequestsController {
   constructor(private readonly rewardsService: RewardsService) {}
 
-  @Post(':eventId')
-  @Roles(UserRole.USER)
-  @ApiOperation({ summary: '[only USER] 보상 요청 생성' })
-  @ApiParam({
-    name: 'eventId',
-    description: '이벤트 ID',
-    required: true,
-    type: String,
-  })
-  @ApiBody({
-    type: OmitType(CreateRewardRequestDto, ['eventId'])
-  })
-  @ApiResponse({
-    status: 200,
-    description: '보상 요청 생성, 자동 승인 시 Reward 목록 반환',
-    type: CreateRewardResponseDto
-  })
-  async createRequest(
-    @Request() req,
-    @Param('eventId', MongoIdPipe) eventId: string,
-    @Body() createRewardRequestDto: Omit<CreateRewardRequestDto, 'eventId'>
-  ): Promise<CreateRewardResponseDto> {
-    const rewardRequestDto = {
-      ...createRewardRequestDto,
-      eventId
-    } as CreateRewardRequestDto;
-    return await this.rewardsService.createRequest(req.user.userId, rewardRequestDto);
-  }
- 
-  @Get()
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.AUDITOR)
-  @ApiOperation({ summary: '[ADMIN, OPERATOR, AUDITOR] 보상 요청 목록 조회' })
-  @ApiQuery({ name: 'userId', required: false, description: '사용자 ID로 필터링' })
-  @ApiQuery({ name: 'eventId', required: false, description: '이벤트 ID로 필터링' })
-  @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'APPROVED', 'REJECTED'] })
-  @ApiQuery({ name: 'page', required: true, default: 1, type: Number })
-  @ApiQuery({ name: 'limit', required: true, default: 10, type: Number })
-  findAllRequests(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('userId') userId?: string | undefined,
-    @Query('eventId') eventId?: string | undefined,
-    @Query('status') status?: string | undefined,
-  ) {
-    return this.rewardsService.findAllRequestsSimple(page, limit, userId, eventId, status);
+  @EventPattern({ cmd: 'createRequest' })
+  async createRequest(@Payload() data: { userId: string; createRewardRequestDto: CreateRewardRequestDto }) {
+    return await this.rewardsService.createRequest(data.userId, data.createRewardRequestDto);
   }
 
-  @Get(':id')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR, UserRole.AUDITOR)
-  @ApiOperation({ summary: '[ADMIN, AUDITOR] 보상 요청 상세 조회' })
-  findOneRequest(@Param('id', MongoIdPipe) id: string) {
-    return this.rewardsService.findOneRequest(id);
+  @EventPattern({ cmd: 'findAllRequestsSimple' })
+  findAllRequests(@Payload() data: { 
+    page: number; 
+    limit: number; 
+    userId?: string; 
+    eventId?: string; 
+    status?: string; 
+  }) {
+    return this.rewardsService.findAllRequestsSimple(
+      data.page,
+      data.limit,
+      data.userId,
+      data.eventId,
+      data.status
+    );
   }
 
-  @Patch(':id')
-  @Roles(UserRole.ADMIN, UserRole.OPERATOR)
-  @ApiOperation({ summary: '[ADMIN, OPERATOR] 보상 요청 상태 업데이트' })
-  async updateRequest(
-    @Param('id', MongoIdPipe) id: string,
-    @Body() updateRequestDto: UpdateRewardRequestDto,
-    @Request() req
-  ): Promise<UpdateRewardResponseDto> {
-    return await this.rewardsService.updateRequestStatus(id, updateRequestDto, req.user.userId);
+  @EventPattern({ cmd: 'findOneRequest' })
+  findOneRequest(@Payload() data: { id: string }) {
+    return this.rewardsService.findOneRequest(data.id);
+  }
+
+  @EventPattern({ cmd: 'updateRequestStatus' })
+  async updateRequest(@Payload() data: { 
+    id: string; 
+    updateRequestDto: UpdateRewardRequestDto; 
+    userId: string; 
+  }) {
+    return await this.rewardsService.updateRequestStatus(
+      data.id,
+      data.updateRequestDto,
+      data.userId
+    );
   }
 
   @Get('user/me')

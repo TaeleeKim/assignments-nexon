@@ -14,38 +14,56 @@ export class RewardsService {
   ) {}
 
   async create(createRewardDto: CreateRewardDto) {
-    return await firstValueFrom(this.rewardClient.send('create', createRewardDto));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'create' }, createRewardDto)
+    );
   }
 
   async findAll(eventId?: string) {
-    return await firstValueFrom(this.rewardClient.send('findAll', { eventId }));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'findAll' }, { eventId })
+    );
   }
 
   async findOne(id: string) {
-    return await firstValueFrom(this.rewardClient.send('findOne', { id }));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'findOne' }, { id })
+    );
   }
 
   async createRequest(userId: string, createRewardRequestDto: CreateRewardRequestDto): Promise<CreateRewardResponseDto> {
-    return await firstValueFrom(this.rewardClient.send('createRequest', { userId, createRewardRequestDto }));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'createRequest' }, { userId, createRewardRequestDto })
+    );
   }
 
   async findAllRequestsSimple(page: number, limit: number, userId?: string, eventId?: string, status?: string) {
-    return await firstValueFrom(this.rewardClient.send('findAllRequestsSimple', { page, limit, userId, eventId, status }));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'findAllRequestsSimple' }, { page, limit, userId, eventId, status })
+    );
   }
 
   async findOneRequest(id: string) {
-    return await firstValueFrom(this.rewardClient.send('findOneRequest', { id }));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'findOneRequest' }, { id })
+    );
   }
 
   async approveRequest(id: string, approverId: string) {
-    return await firstValueFrom(this.rewardClient.send('approveRequest', { id, approverId }));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'approveRequest' }, { id, approverId })
+    );
   }
 
   async rejectRequest(id: string, rejectorId: string, rejectionReason?: string) {
-    return await firstValueFrom(this.rewardClient.send('rejectRequest', { id, rejectorId, rejectionReason }));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'rejectRequest' }, { id, rejectorId, rejectionReason })
+    );
   }
   
   async updateRequestStatus(id: string, updateStatusDto: UpdateRewardRequestDto, userId: string): Promise<UpdateRewardResponseDto> {
-    return await firstValueFrom(this.rewardClient.send('updateRequestStatus', { id, updateStatusDto, userId }));
+    return await firstValueFrom(
+      this.rewardClient.emit({ cmd: 'updateRequestStatus' }, { id, updateStatusDto, userId })
+    );
   }
 } 

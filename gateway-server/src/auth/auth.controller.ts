@@ -5,7 +5,6 @@ import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
-import { EventPattern } from '@nestjs/microservices';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -22,12 +21,11 @@ export class AuthController {
 
   @UseGuards(LocalAuthGuard)
   @Post('login')
-  @EventPattern('login')
   @ApiOperation({ summary: '사용자 로그인' })
   @ApiResponse({ status: 200, description: '로그인 성공' })
   @ApiResponse({ status: 401, description: '인증 실패' })
   async login(@Body() loginDto: LoginDto) {
-    return this.authService.login(loginDto.email, loginDto.password);
+    return this.authService.login(loginDto);
   }
 
   @UseGuards(JwtAuthGuard)

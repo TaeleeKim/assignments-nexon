@@ -1,5 +1,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
+import { firstValueFrom } from 'rxjs';
 import { CreateEventDto } from './dto/create-event.dto';
 
 @Injectable()
@@ -9,30 +10,44 @@ export class EventsService {
   ) {}
 
   async create(createEventDto: CreateEventDto) {
-    return await this.eventClient.send('create', createEventDto);
+    return await firstValueFrom(
+      this.eventClient.emit({ cmd: 'create' }, createEventDto)
+    );
   }
 
   async findAllSimple(status?: string, type?: string) {
-    return await this.eventClient.send('findAllSimple', { status });
+    return await firstValueFrom(
+      this.eventClient.emit({ cmd: 'findAllSimple' }, { status, type })
+    );
   }
 
   async findAllDetailed(status?: string, type?: string) {
-    return await this.eventClient.send('findAllDetailed', { status, type });
+    return await firstValueFrom(
+      this.eventClient.emit({ cmd: 'findAllDetailed' }, { status, type })
+    );
   }
 
   async findOne(id: string) {
-    return await this.eventClient.send('findOne', { id });
+    return await firstValueFrom(
+      this.eventClient.emit({ cmd: 'findOne' }, { id })
+    );
   }
 
   async findActive() {
-    return await this.eventClient.send('findActive', {});
+    return await firstValueFrom(
+      this.eventClient.emit({ cmd: 'findActive' }, {})
+    );
   }
 
   async update(id: string, updateEventDto: Partial<CreateEventDto>) {
-    return await this.eventClient.send('update', { id, ...updateEventDto });
+    return await firstValueFrom(
+      this.eventClient.emit({ cmd: 'update' }, { id, updateEventDto })
+    );
   }
 
   async remove(id: string) {
-    return await this.eventClient.send('remove', { id });
+    return await firstValueFrom(
+      this.eventClient.emit({ cmd: 'remove' }, { id })
+    );
   }
 } 
